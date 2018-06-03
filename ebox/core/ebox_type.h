@@ -54,6 +54,18 @@ typedef union
     int32_t value;
 }Data32_t; 
 
+typedef union
+{
+    uint8_t byte[4];
+    float value;
+}DataFloat_t; 
+
+typedef union
+{
+    uint8_t byte[8];
+    double value;
+}DataDouble_t; 
+
 typedef struct
 {
 	uint8_t year;

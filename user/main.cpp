@@ -32,6 +32,7 @@ u8 count;
 Timer timer4(TIM4);
 Timer timer2(TIM2);
 
+AdjustDate_t convert;
 
 void FreeModbusIoConfig(void)
 { 
@@ -83,7 +84,7 @@ void setup()
 {
 	ebox_init();
     
-    uart1.begin(9600);
+    uart1.begin(115200);
     uart1.attach(ddc_input,RxIrq);
     uart1.interrupt(RxIrq,ENABLE);
     
@@ -108,8 +109,8 @@ void setup()
     PA5.mode(OUTPUT_PP);
 	adc.begin(1);
     uart1.printf("test:%d\r\n",adc.self_test());
-    
-    calibrate();
+
+    convert = calibrate();
     
 
 }
@@ -136,6 +137,10 @@ int main(void)
 	}
 }
 
+float get_pt100(uint16_t adc0,uint16_t adc1,uint16_t adc2)
+{
 
+
+}
 
 

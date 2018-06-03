@@ -3,5 +3,17 @@
 #include "ebox.h"
 #include "LinearRegression.h"
 
-void calibrate();
+typedef struct 
+{
+    double ratio;
+    double offset;
+    
+    uint8_t rows;
+    uint8_t cols;
+    
+//    double tss;//回归平方和
+    
+}AdjustDate_t;
+AdjustDate_t calibrate();
+AdjustDate_t adjust_test();
 #endif

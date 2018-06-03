@@ -3,6 +3,7 @@
 #include "ddc.h"
 #include "bsp.h"
 
+uint8_t calibrate_flag = 0;
 double data1[12][2] = {
 //    X      Y
     {187.1, 25.4},
@@ -48,31 +49,60 @@ void display(double *dat, double *Answer, double *SquarePoor, int rows, int cols
 
 void calibrate_para(uint8_t *ptr, uint16_t len )
 {
-    float value;
-    
-    value = atof((char *)ptr);
+    DataU16_t adc;
+    DataFloat_t value;
+    for(int i = 0; i < len/6; i++)
+    {
+        adc.byte[0] = *ptr++;
+        adc.byte[1] = *ptr++;
+        value.byte[0] = *ptr++;
+        value.byte[1] = *ptr++;
+        value.byte[2] = *ptr++;
+        value.byte[3] = *ptr++;
+        data1[i/6][0] = (double)adc.value;
+        data1[i/6][1] = (double)value.value;
+    }
+    linear_regression((double*)data1,12,&answer[0],&answer[1],&SquarePoor[0]);
+    display((double*)data1,answer,&SquarePoor[0],12,2);
+    calibrate_flag = 1;
 }
-void calibrate()
+AdjustDate_t calibrate()
 {
+    AdjustDate_t temp;
     uint8_t buf[20];
     DataU16_t adc_value;
     uint8_t len;
-    ddc_attach_chx(1,calibrate_para);
     
-    while(1)
+    linear_regression((double*)data1,12,&answer[0],&answer[1],&SquarePoor[0]);
+    display((double*)data1,answer,&SquarePoor[0],12,2);
+
+    ddc_attach_chx(1,calibrate_para);
+    calibrate_flag = 0;
+    while(calibrate_flag == 0)
     {
         adc_value.value = adc.read(AIN1);
 //        adc_value.byte[0] =  8;
 //        adc_value.byte[1] =  9;
-        len = ddc_make_frame(buf,&adc_value.byte[0],2,DDC_NoAck,1);
-        ddc_add_to_list(buf);    
-        delay_ms(1000);
+       // len = ddc_make_frame(buf,&adc_value.byte[0],2,DDC_NoAck,1);
+       // ddc_add_to_list(buf);    
+        delay_ms(100);
     }
-    linear_regression((double*)data1,12,&answer[0],&answer[1],&SquarePoor[0]);
-    display((double*)data1,answer,&SquarePoor[0],12,2);
     ddc_attach_chx(1,0);
-
+    
+    temp.ratio = answer[1];
+    temp.offset = answer[0];
+    
+    return temp;
 }
 
 
+AdjustDate_t adjust_test()
+{
+    AdjustDate_t x;
+    x.ratio = 1;
+    x.offset = 2;
+    x.rows = 3;
+    
+    return x;
+}
 
