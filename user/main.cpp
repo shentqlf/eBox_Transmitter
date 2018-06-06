@@ -103,10 +103,14 @@ void setup()
     uart1.interrupt(RxIrq,ENABLE);
     
     ddc_init();
-//    timer2.begin(100);
-//    timer2.attach(ddc_loop);
-//    timer2.interrupt(ENABLE);
-//    timer2.start();
+    
+     timer2.begin(10);
+    //timer2.attach(t2it);
+    timer2.attach(ddc_loop);
+    timer2.interrupt(ENABLE);
+    timer2.start();
+    
+
 //	FreeModbusIoConfig();
 //	FreemodbusConfig();
 //	

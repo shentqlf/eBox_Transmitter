@@ -66,7 +66,9 @@ void ddc_recv_process()
                     ddc_recv_state = DDC_ID;
                     recv_frame.head[1] = 0x00;
                 }
+                #if DDC_DEBUG
                 ebox_printf("head->");
+                #endif
                 break;
             case DDC_ID:
                 recv_frame.id.byte[counter++] = ch;
@@ -98,7 +100,9 @@ void ddc_recv_process()
                     }
                     counter = 0;
                 }
+                #if DDC_DEBUG
                 ebox_printf("len->");
+                #endif
                 break;
             case DDC_PAYLOAD:
                 recv_frame.payload[counter++] = ch;
@@ -107,7 +111,9 @@ void ddc_recv_process()
                     ddc_recv_state = DDC_CRC;
                     counter = 0;
                 }
+                #if DDC_DEBUG
                 ebox_printf("payload->");
+                #endif
                 break;
             case DDC_CRC:
                 #if DDC_DEBUG
@@ -239,7 +245,6 @@ uint16_t ddc_make_frame(uint8_t *dst,uint8_t *data,uint16_t data_len,DdcAck_t ac
 {
     uint16_t i = 0,j = 0, k = 0; 
     
-
     
     DataU16_t payload_len;
     DataU16_t frame_id;
@@ -247,9 +252,8 @@ uint16_t ddc_make_frame(uint8_t *dst,uint8_t *data,uint16_t data_len,DdcAck_t ac
 
     payload_len.value = data_len;
     frame_id.value = ddc_get_id();
+
     
-    for(j = 0; j < data_len + 10; j++)
-        dst[j] = 0;    
     dst[i++] = 0x55;
     dst[i++] = 0xAA;
     
