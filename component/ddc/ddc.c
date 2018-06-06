@@ -110,14 +110,15 @@ void ddc_recv_process()
                 ebox_printf("payload->");
                 break;
             case DDC_CRC:
+                #if DDC_DEBUG
                 ebox_printf("crc->");
+                #endif
                 recv_frame.crc.byte[counter++] = ch;
                 if(counter == 2)
                 {
                     ddc_frame_to_buf(buf,&recv_frame);
                     if(crc16(buf,(recv_frame.payload_len.value + 8)) == recv_frame.crc.value)//crc ok
                     {
-                        counter = 0;
                         //方法1：
                         //将该段数据添加到应用数据链表中。被用户查询并执行
                         //方法2：
@@ -131,13 +132,17 @@ void ddc_recv_process()
                         #if DDC_DEBUG
                         ebox_printf("\r\ncrc = 0x%04x \r\n",recv_frame.crc.value);
                         ebox_printf("\r\ncrc = 0x%04x \r\n",crc16(buf,recv_frame.payload_len.value + 8));
-                        #endif
+                        #endif           
+                        ddc_recv_state = DDC_HEAD;
+
                     }
+                    counter = 0;
+
                 }
                 break;
 
             default:
-                 
+                ddc_recv_state = DDC_HEAD;
                 break;
         }
         
@@ -232,8 +237,9 @@ uint16_t ddc_get_id()
 }
 uint16_t ddc_make_frame(uint8_t *dst,uint8_t *data,uint16_t data_len,DdcAck_t ack,uint8_t ch )
 {
-    uint16_t i = 0,k = 0; 
+    uint16_t i = 0,j = 0, k = 0; 
     
+
     
     DataU16_t payload_len;
     DataU16_t frame_id;
@@ -242,6 +248,8 @@ uint16_t ddc_make_frame(uint8_t *dst,uint8_t *data,uint16_t data_len,DdcAck_t ac
     payload_len.value = data_len;
     frame_id.value = ddc_get_id();
     
+    for(j = 0; j < data_len + 10; j++)
+        dst[j] = 0;    
     dst[i++] = 0x55;
     dst[i++] = 0xAA;
     

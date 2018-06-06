@@ -18,6 +18,7 @@ class LpfRc
             float out_put;
             out_put = alpha * input_val + (1 -alpha)* last_output;
             last_output = out_put;
+            return out_put;
         }
 
     private:

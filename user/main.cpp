@@ -19,6 +19,7 @@ Copyright 2015 shentq. All Rights Reserved.
 #include "ddc.h"
 #include "adjust.h"
 #include "bsp.h"
+#include "filters.h"
 
 #define LED1_ON   PB8.set()
 #define LED1_OFF  PB8.reset()
@@ -33,6 +34,7 @@ Timer timer4(TIM4);
 Timer timer2(TIM2);
 
 AdjustDate_t convert;
+FilterAverage fmw0(50);
 
 void FreeModbusIoConfig(void)
 { 
@@ -78,21 +80,33 @@ void Adc_Poll(void)
 void ddc_input()
 {
     ddc_get_char(uart1.read());
+    //uart1.write(uart1.read());
 }
+
+double v0,v1,v2,v3,v4;
+double hex0,hex1,hex2,hex3;
+double dif12;
+double res;
+double RtoT(double R, uint8_t type);
+double get_rx();
+float temperature;
+double rx;
 
 void setup()
 {
 	ebox_init();
     
     uart1.begin(115200);
+   // uart2.begin(115200);
+    uart3.begin(115200);
     uart1.attach(ddc_input,RxIrq);
     uart1.interrupt(RxIrq,ENABLE);
     
     ddc_init();
-    timer2.begin(100);
-    timer2.attach(ddc_loop);
-    timer2.interrupt(ENABLE);
-    timer2.start();
+//    timer2.begin(100);
+//    timer2.attach(ddc_loop);
+//    timer2.interrupt(ENABLE);
+//    timer2.start();
 //	FreeModbusIoConfig();
 //	FreemodbusConfig();
 //	
@@ -129,18 +143,167 @@ int main(void)
 //        Button_Poll();
 //        Adc_Poll();
 //        PA5.toggle();
+           while(1)
+           {
+                uint16_t temp = adc.read(ADC_AIN0);
+                if(fmw0.sample(temp) == true)
+                {
+                    hex0 = fmw0.out();
+                    v0 = adc.adc_to_voltage(hex0);
+                    break;
+                }
+           }
+           while(1)
+           {
+                uint16_t temp = adc.read(ADC_AIN1);
+                if(fmw0.sample(temp) == true)
+                {
+                    hex1 = fmw0.out();
+                    v1 = adc.adc_to_voltage(hex1);
+                    break;
+                }
+
+           }
+           while(1)
+           {
+                uint16_t temp = adc.read(ADC_AIN2);
+                if(fmw0.sample(temp) == true)
+                {
+                    hex2 = fmw0.out();
+                    v2 = adc.adc_to_voltage(hex2);
+                    break;
+                }
+           }
+           while(1)
+           {
+                uint16_t temp = adc.read(ADC_AIN3);
+                if(fmw0.sample(temp) == true)
+                {
+                    hex3 = fmw0.out();
+                    v3 = adc.adc_to_voltage(hex3);
+                    break;
+                }
+           }
+           
+        rx = get_rx();
+        res = 0.01154*hex0 + 17.00055;
+        
+        temperature = RtoT(212.0515,1);
+        
         uart1.printf("===========ADC test==============\r\n");
-        uart1.printf("A0-1(hex    ):%d\t%d\r\n",adc.read(AIN0),adc.read(AIN1));
-        uart1.printf("A0-1(voltage):%f\t%f\r\n",adc.read_voltage(AIN0),adc.read_voltage(AIN1));
+        uart1.printf("A0:%0.3f\t\t%0.3f\r\n",hex0,v0);
+        uart1.printf("A1:%0.3f\t\t%0.3f\r\n",hex1,v1);
+        uart1.printf("A2:%0.3f\t\t%0.3f\t%0.3f\r\n",hex2,v2,rx);
+        uart1.printf("A3:%0.3f\t\t%0.3f\r\n",adc.read(ADC_AIN3),v3);
+        uart1.printf("A0:%0.3f\r\n",res);
+        uart1.printf("temp:%0.3f\r\n",temperature);
 
-        delay_ms(500);
-	}
+//        uart1.printf("A0:%d\t\t%f\r\n",adc.read(ADC_AIN0),adc.read_voltage(ADC_AIN0));
+//        uart1.printf("A1:%d\t\t%f\r\n",adc.read(ADC_AIN1),adc.read_voltage(ADC_AIN1));
+
+        delay_ms(500);	}
 }
 
-float get_pt100(uint16_t adc0,uint16_t adc1,uint16_t adc2)
+double get_rx()
 {
+    double rx = 0;
+    double vdif = 0;
+    double temphex1 = 0,temphex2 = 0;
+    double tempv1 = 0,tempv2 = 0;
+    
+   while(1)
+   {
+        uint16_t temp = adc.read(ADC_AIN1);
+        if(fmw0.sample(temp) == true)
+        {
+            temphex1 = fmw0.out();
+            tempv1 = adc.adc_to_voltage(hex1);
+            break;
+        }
 
+   }
+   while(1)
+   {
+        uint16_t temp = adc.read(ADC_AIN2);
+        if(fmw0.sample(temp) == true)
+        {
+            temphex2 = fmw0.out();
+            tempv2 = adc.adc_to_voltage(hex2);
+            break;
+        }
+   }
 
+    vdif = (tempv1 -  tempv2);
+    
+    return vdif;
 }
-
+double RtoT(double R, uint8_t type)
+{
+    uint8_t R0;// ???0????
+    double T, tmp, min, mid, max;
+    double x, y, z;
+    double d = 3.9083/1e3, b = -5.775/1e7, c = -4.183/1e12;
+    
+    if(type <= 1)
+    {
+        if(type == 0)
+        {
+            R0 = 10; min = 1.852; mid = 10; max = 39.049;// Pt10
+        }else
+        {
+            R0 = 100; min = 18.52; mid = 100; max = 390.49; // Pt100
+        }
+        if(R>=mid && R<=max)
+        {
+            y = sqrt(d*d - 4*b*(1-R/R0));
+            T = (y-d) / (2*b); // ????
+        }else if(R<mid && R>=min)
+        {
+            x = 0; y = -100; z = -201;
+            tmp = R0*(1 + d*y + b*y*y + c*(y-100)*y*y*y);
+            while(fabs(tmp-R)>=0.007)
+            {
+                if(R > tmp)
+                {
+                    x = x; z = y;
+                    y = (x+y)/2;
+                }
+                else
+                {
+                    x = y; z = z;
+                    y = (y+z)/2;
+                }
+                tmp = R0*(1 + d*y + b*y*y + c*(y-100)*y*y*y);
+            }
+            T = y; // ????
+        }
+    }
+    else
+    {
+        if(type == 2)// Cu50
+            R0 = 50;
+        else // Cu100
+            R0 = 100;
+            
+        x = 150; y = 50; z = -50;
+        tmp = R0*(1 + 4.289/1e3*y - 2.133/1e7*y*y + 1.233/1e9*y*y*y);
+        while(fabs(tmp-R)>=0.007)
+        {
+            if(R > tmp)
+            {
+                x = x; z = y; 
+                y = (x+y)/2;
+            }
+            else
+            {
+                x = y; z = z;
+                y = (y+z)/2;
+            }
+            tmp = R0*(1 + 4.28899/1e3*y - 2.133/1e7*y*y + 1.233/1e9*y*y*y);
+        }
+        T = y;
+    }
+    
+    return T;
+}
 

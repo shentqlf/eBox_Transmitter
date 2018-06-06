@@ -5,7 +5,7 @@ struct ebox_fifo *fifo_recv;
 
 void ddc_init()
 {
-    fifo_recv = ebox_fifo_alloc(DDC_MAX_FRAME_LENGTH * 4);
+    fifo_recv = ebox_fifo_alloc(DDC_MAX_FRAME_LENGTH * 10);
 
 }
 void ddc_get_char(uint8_t ch)

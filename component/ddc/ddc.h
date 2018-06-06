@@ -71,6 +71,3 @@ void        ddc_check_ack_list(void);
 #endif
 
 #endif 
-
-
- 

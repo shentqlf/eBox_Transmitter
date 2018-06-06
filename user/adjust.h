@@ -5,15 +5,15 @@
 
 typedef struct 
 {
-    double ratio;
-    double offset;
-    
-    uint8_t rows;
-    uint8_t cols;
-    
-//    double tss;//回归平方和
-    
+    DataFloat_t ratioP;
+    DataFloat_t offsetP;
+    DataFloat_t ccP;
+
+    DataFloat_t ratioR;
+    DataFloat_t offsetR;  
+    DataFloat_t ccR;
 }AdjustDate_t;
+
 AdjustDate_t calibrate();
 AdjustDate_t adjust_test();
 #endif
