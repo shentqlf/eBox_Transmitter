@@ -241,6 +241,46 @@ uint16_t ddc_get_id()
 {
     return ddc_id++;
 }
+uint8_t* ddc_nonblocking(uint8_t *data,uint16_t data_len,DdcAck_t ack,uint8_t ch )
+{
+    uint16_t i = 0,j = 0, k = 0; 
+    uint8_t *dst = (uint8_t *)ebox_malloc(data_len + 10);
+    
+    DataU16_t payload_len;
+    DataU16_t frame_id;
+    DataU16_t crc;
+
+    payload_len.value = data_len;
+    frame_id.value = ddc_get_id();
+
+    
+    dst[i++] = 0x55;
+    dst[i++] = 0xAA;
+    
+    dst[i++] = frame_id.byte[0];
+    dst[i++] = frame_id.byte[1];
+
+    dst[i++] = ch;
+    
+    dst[i++] = ack;
+    
+    dst[i++] = payload_len.byte[0];
+    dst[i++] = payload_len.byte[1];
+    
+    
+    for( k = 0; k < data_len; k++ )
+        dst[i++] = *data++;
+    
+    crc.value = crc16(dst,payload_len.value + 8);
+    
+    dst[i++] = crc.byte[0];
+    dst[i++] = crc.byte[1];
+
+    ddc_add_to_list(dst);  
+
+    return dst;
+}
+
 uint16_t ddc_make_frame(uint8_t *dst,uint8_t *data,uint16_t data_len,DdcAck_t ack,uint8_t ch )
 {
     uint16_t i = 0,j = 0, k = 0; 

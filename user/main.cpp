@@ -32,8 +32,6 @@ Copyright 2015 shentq. All Rights Reserved.
 u8 count;
 Timer timer4(TIM4);
 Timer timer2(TIM2);
-
-AdjustDate_t convert;
 FilterAverage fmw0(50);
 
 void FreeModbusIoConfig(void)
@@ -92,6 +90,15 @@ double get_rx();
 float temperature;
 double rx;
 
+DataU32_t is_enter_adjust_flag;
+void enter_adjust(uint8_t *ptr, uint16_t len)
+{
+
+        is_enter_adjust_flag.byte[0] = *ptr++;
+        is_enter_adjust_flag.byte[1] = *ptr++;
+        is_enter_adjust_flag.byte[2] = *ptr++;
+        is_enter_adjust_flag.byte[3] = *ptr++;
+}
 void setup()
 {
 	ebox_init();
@@ -103,7 +110,7 @@ void setup()
     uart1.interrupt(RxIrq,ENABLE);
     
     ddc_init();
-    
+    ddc_attach_chx(20,enter_adjust);
      timer2.begin(10);
     //timer2.attach(t2it);
     timer2.attach(ddc_loop);
@@ -128,7 +135,18 @@ void setup()
 	adc.begin(1);
     uart1.printf("test:%d\r\n",adc.self_test());
 
-    convert = calibrate();
+    //DataU32_t flag;
+
+//    xx.ccPt.value = 12345;
+//    uart1.printf("ccpt:%f\r\n",xx.ccPt.value);
+//    uart1.printf("flag:%d\r\n",adjust_check());
+//    adjust_save(&xx);
+//    uart1.printf("flag:%d\r\n",adjust_check());
+//    xx.ccPt.value = 0;
+//    uart1.printf("ccpt:%f\r\n",xx.ccPt.value);
+//    adjust_read(&xx);
+//    uart1.printf("ccpt:%f\r\n",xx.ccPt.value);
+//    while(1);
     
 
 }
@@ -142,70 +160,76 @@ int main(void)
 
 	while(1)
 	{		 	
+        if(is_enter_adjust_flag.value == 0x55aa)
+        {
+            calibrate();
+        }
 //        FreemodbusPoll();
 //        LED_Poll();
 //        Button_Poll();
 //        Adc_Poll();
 //        PA5.toggle();
-           while(1)
-           {
-                uint16_t temp = adc.read(ADC_AIN0);
-                if(fmw0.sample(temp) == true)
-                {
-                    hex0 = fmw0.out();
-                    v0 = adc.adc_to_voltage(hex0);
-                    break;
-                }
-           }
-           while(1)
-           {
-                uint16_t temp = adc.read(ADC_AIN1);
-                if(fmw0.sample(temp) == true)
-                {
-                    hex1 = fmw0.out();
-                    v1 = adc.adc_to_voltage(hex1);
-                    break;
-                }
-
-           }
-           while(1)
-           {
-                uint16_t temp = adc.read(ADC_AIN2);
-                if(fmw0.sample(temp) == true)
-                {
-                    hex2 = fmw0.out();
-                    v2 = adc.adc_to_voltage(hex2);
-                    break;
-                }
-           }
-           while(1)
-           {
-                uint16_t temp = adc.read(ADC_AIN3);
-                if(fmw0.sample(temp) == true)
-                {
-                    hex3 = fmw0.out();
-                    v3 = adc.adc_to_voltage(hex3);
-                    break;
-                }
-           }
-           
-        rx = get_rx();
-        res = 0.01154*hex0 + 17.00055;
         
-        temperature = RtoT(212.0515,1);
-        
-        uart1.printf("===========ADC test==============\r\n");
-        uart1.printf("A0:%0.3f\t\t%0.3f\r\n",hex0,v0);
-        uart1.printf("A1:%0.3f\t\t%0.3f\r\n",hex1,v1);
-        uart1.printf("A2:%0.3f\t\t%0.3f\t%0.3f\r\n",hex2,v2,rx);
-        uart1.printf("A3:%0.3f\t\t%0.3f\r\n",adc.read(ADC_AIN3),v3);
-        uart1.printf("A0:%0.3f\r\n",res);
-        uart1.printf("temp:%0.3f\r\n",temperature);
+//           while(1)
+//           {
+//                uint16_t temp = adc.read(ADC_AIN0);
+//                if(fmw0.sample(temp) == true)
+//                {
+//                    hex0 = fmw0.out();
+//                    v0 = adc.adc_to_voltage(hex0);
+//                    break;
+//                }
+//           }
+//           while(1)
+//           {
+//                uint16_t temp = adc.read(ADC_AIN1);
+//                if(fmw0.sample(temp) == true)
+//                {
+//                    hex1 = fmw0.out();
+//                    v1 = adc.adc_to_voltage(hex1);
+//                    break;
+//                }
 
-//        uart1.printf("A0:%d\t\t%f\r\n",adc.read(ADC_AIN0),adc.read_voltage(ADC_AIN0));
-//        uart1.printf("A1:%d\t\t%f\r\n",adc.read(ADC_AIN1),adc.read_voltage(ADC_AIN1));
+//           }
+//           while(1)
+//           {
+//                uint16_t temp = adc.read(ADC_AIN2);
+//                if(fmw0.sample(temp) == true)
+//                {
+//                    hex2 = fmw0.out();
+//                    v2 = adc.adc_to_voltage(hex2);
+//                    break;
+//                }
+//           }
+//           while(1)
+//           {
+//                uint16_t temp = adc.read(ADC_AIN3);
+//                if(fmw0.sample(temp) == true)
+//                {
+//                    hex3 = fmw0.out();
+//                    v3 = adc.adc_to_voltage(hex3);
+//                    break;
+//                }
+//           }
+//           
+//        rx = get_rx();
+//        res = 0.01154*hex0 + 17.00055;
+//        
+//        temperature = RtoT(212.0515,1);
+//        
+//        uart1.printf("===========ADC test==============\r\n");
+//        uart1.printf("A0:%0.3f\t\t%0.3f\r\n",hex0,v0);
+//        uart1.printf("A1:%0.3f\t\t%0.3f\r\n",hex1,v1);
+//        uart1.printf("A2:%0.3f\t\t%0.3f\t%0.3f\r\n",hex2,v2,rx);
+//        uart1.printf("A3:%0.3f\t\t%0.3f\r\n",adc.read(ADC_AIN3),v3);
+//        uart1.printf("A0:%0.3f\r\n",res);
+//        uart1.printf("temp:%0.3f\r\n",temperature);
 
-        delay_ms(500);	}
+////        uart1.printf("A0:%d\t\t%f\r\n",adc.read(ADC_AIN0),adc.read_voltage(ADC_AIN0));
+////        uart1.printf("A1:%d\t\t%f\r\n",adc.read(ADC_AIN1),adc.read_voltage(ADC_AIN1));
+
+//        delay_ms(500);	
+    }
 }
 
 double get_rx()

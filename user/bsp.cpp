@@ -30,5 +30,6 @@ SD      sd(&PB12, &spi2);
 At24c02 eeprom(&i2c2);
 */
 Ads1118 adc(&PB12,&spi2);
+Flash iflash;
 
 

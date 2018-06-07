@@ -4,11 +4,9 @@
 #include "bsp.h"
 
 
-AdjustDate_t adjust;
+PtData_t pt100;
 
-DataFloat_t RtValue;
-DataFloat_t RxValue;
-DataFloat_t RxValueAdjust;
+uint8_t adjust_flag_rx,adjust_flag_pt;
 
 DataFloat_t adc_value;
 DataFloat_t adc_value1;
@@ -66,144 +64,133 @@ void display(double *dat, double *Answer, double *SquarePoor, int rows, int cols
 void calibrate_para(uint8_t *ptr, uint16_t len )
 {
     uint8_t *p;
-    uint8_t data2[10];
-    DataFloat_t adc;
-    DataFloat_t value;
+    uint8_t data[16];
+    DataDouble_t adc;
+    DataDouble_t value;
     
-    uint8_t rows = len/8;
+    uint8_t rows = len/16;
 
-    
-
-    for(int i = 0; i < rows; i++)
+    if(rows == 1)
     {
-        adc.byte[0] = *ptr++;
-        adc.byte[1] = *ptr++;
-        adc.byte[2] = *ptr++;
-        adc.byte[3] = *ptr++;
-
-        value.byte[0] = *ptr++;
-        value.byte[1] = *ptr++;
-        value.byte[2] = *ptr++;
-        value.byte[3] = *ptr++;
-        
-        data1[i][0] = (double)adc.value;
-        data1[i][1] = (double)value.value;
-    }
-    linear_regression((double*)data1,rows,&answer[0],&answer[1],&SquarePoor[0]);
-    display((double*)data1,answer,&SquarePoor[0],rows,2);
-    
-
-    adjust.offsetP.value = answer[0];
-    adjust.ratioP.value = answer[1];
-    adjust.ccP.value = sqrt(SquarePoor[0] / (SquarePoor[0] + SquarePoor[1]));
-    
-    for(int i = 0 ; i < 4; i++)
-    {
-        data2[i]= adjust.ratioP.byte[i];
-    }
-    for(int i = 4 ; i < 8; i++)
-    {
-        data2[i]= adjust.offsetP.byte[i];
-    }    
-    p = (uint8_t *)ebox_malloc(8 + 10);
-    ddc_make_frame(p,data2,8,DDC_NoAck,11);
-    ddc_add_to_list(p);
-    
-    p = (uint8_t *)ebox_malloc(4 + 10);
-    ddc_make_frame(p,&adjust.ccP.byte[0],4,DDC_NoAck,10);
-    ddc_add_to_list(p);  
-
-    PB8.toggle();
-//    calibrate_flag = 1;
-
-}
-
-DataFloat_t value_ratio;
-DataFloat_t value_offset;
-void adjust_rx(uint8_t *ptr, uint16_t len )
-{
-    uint8_t *p;
-    uint8_t data2[10];
-    DataFloat_t adc;
-    DataFloat_t value;
-    uint8_t rows = len/8;
-
-    
-    DataFloat_t value_cc;
-    if(len == 8)
-    {
-        adc.byte[0] = *ptr++;
-        adc.byte[1] = *ptr++;
-        adc.byte[2] = *ptr++;
-        adc.byte[3] = *ptr++;
-        value.byte[0] = *ptr++;
-        value.byte[1] = *ptr++;
-        value.byte[2] = *ptr++;
-        value.byte[3] = *ptr++;
+        ebox_memcpy(adc.byte,ptr,8);
+        ptr+=8;
+        ebox_memcpy(value.byte,ptr,8);
+        ptr+=8;
         if(value.value == 0)
         {
-           adjust.ratioR.value = 101;
-           adjust.offsetR.value = adc_voltage1.value - adc_voltage2.value;//²îÖµ
-            //adjust.ccR.value = 100;
+            pt100.offsetPt.value = 538.667;
+            pt100.offsetPt.value = adc_value.value ;//²îÖµ
+            pt100.ccPt.value = 100;
+            ddc_nonblocking(pt100.ccPt.byte,8,DDC_NoAck,10);
+
+            pt100.ptMode = 0;
         }
     }
     else
     {
-    for(int i = 0; i < rows; i++)
-    {
-        adc.byte[0] = *ptr++;
-        adc.byte[1] = *ptr++;
-        adc.byte[2] = *ptr++;
-        adc.byte[3] = *ptr++;
+        for(int i = 0; i < rows; i++)
+        {
+            ebox_memcpy(adc.byte,ptr,8);
+            ptr+=8;
+            ebox_memcpy(value.byte,ptr,8);
+            ptr+=8;
 
-        value.byte[0] = *ptr++;
-        value.byte[1] = *ptr++;
-        value.byte[2] = *ptr++;
-        value.byte[3] = *ptr++;
+            data1[i][0] = (double)adc.value;
+            data1[i][1] = (double)value.value;
+        }
+        linear_regression((double*)data1,rows,&answer[0],&answer[1],&SquarePoor[0]);
+        display((double*)data1,answer,&SquarePoor[0],rows,2);
+    
         
-        data1[i][0] = (double)adc.value;
-        data1[i][1] = (double)value.value;
+
+        pt100.offsetPt.value = answer[0];
+        pt100.ratioPt.value = answer[1];
+        pt100.ccPt.value = sqrt(SquarePoor[0] / (SquarePoor[0] + SquarePoor[1]));
+        
+ 
+        ddc_nonblocking(&pt100.ccPt.byte[0],8,DDC_NoAck,10);
+
+        pt100.ptMode = 1;
+
     }
-    linear_regression((double*)data1,rows,&answer[0],&answer[1],&SquarePoor[0]);
-    display((double*)data1,answer,&SquarePoor[0],rows,2);
+    ebox_memcpy(&data[0],pt100.ratioPt.byte,8);
+    ebox_memcpy(&data[8],pt100.offsetPt.byte,8);
+    
+    ddc_nonblocking(data,16,DDC_NoAck,11);
+
+    adjust_flag_pt = 1;
+    PB8.toggle();
+
+}
+
+void adjust_rx(uint8_t *ptr, uint16_t len )
+{
+    uint8_t data[16];
+    DataDouble_t adc;
+    DataDouble_t value;
+    uint8_t rows = len/16;
+
+    
+    DataFloat_t value_cc;
+    if(rows == 1)
+    {
+        ebox_memcpy(adc.byte,ptr,8);
+        ptr+=8;
+        ebox_memcpy(value.byte,ptr,8);
+
+        if(value.value == 0)
+        {
+            pt100.ratioRx.value = 538.667;
+            pt100.offsetRx.value = adc_value1.value - adc_value2.value;//²îÖµ
+            pt100.ccRx.value = 100;
+            ddc_nonblocking(pt100.ccRx.byte,8,DDC_NoAck,10);
+
+        }
+    }
+    else
+    {
+        for(int i = 0; i < rows; i++)
+        {
+            ebox_memcpy(adc.byte,ptr,8);
+            ptr+=8;
+            ebox_memcpy(value.byte,ptr,8);
+            ptr+=8;
+
+            data1[i][0] = (double)adc.value;
+            data1[i][1] = (double)value.value;
+        }
+        linear_regression((double*)data1,rows,&answer[0],&answer[1],&SquarePoor[0]);
+        display((double*)data1,answer,&SquarePoor[0],rows,2);
     
 
-        adjust.offsetR.value  = answer[0];
-        adjust.ratioR.value = answer[1];
-        adjust.ccR.value = sqrt(SquarePoor[0] / (SquarePoor[0] + SquarePoor[1]));
+        pt100.offsetRx.value  = answer[0];
+        pt100.ratioRx.value = answer[1];
+        pt100.ccRx.value = sqrt(SquarePoor[0] / (SquarePoor[0] + SquarePoor[1]));
         
-        p = (uint8_t *)ebox_malloc(8 + 10);
-        ddc_make_frame(p,&adjust.ccR.byte[0],4,DDC_NoAck,10);
-        ddc_add_to_list(p);  
+        ddc_nonblocking(pt100.ccRx.byte,8,DDC_NoAck,10);
+
+        pt100.rxMode = 1;
 
     }
-        for(int i = 0 ; i < 4; i++)
-        {
-            data2[i]= adjust.ratioR.byte[i];
-        }
-        for(int i = 4 ; i < 8; i++)
-        {
-            data2[i]= adjust.offsetR.byte[i];
-        }    
-        p = (uint8_t *)ebox_malloc(8 + 10);
-        ddc_make_frame(p,data2,8,DDC_NoAck,11);
-        ddc_add_to_list(p);
+    ebox_memcpy(&data[0],pt100.ratioRx.byte,8);
+    ebox_memcpy(&data[8],pt100.offsetRx.byte,8);    
+    ddc_nonblocking(data,16,DDC_NoAck,11);
 
+
+    adjust_flag_rx = 1;
     
     PB9.toggle();
 
 }
-AdjustDate_t calibrate()
+PtData_t calibrate()
 {
-    AdjustDate_t temp;
     uint8_t *p;
+    uint8_t *px;
     uint8_t data[20];
 
     uint8_t len;
     uint32_t ajust_timer;
     
-    linear_regression((double*)data1,12,&answer[0],&answer[1],&SquarePoor[0]);
-    display((double*)data1,answer,&SquarePoor[0],12,2);
 
     PB8.mode(OUTPUT_PP);
     PB9.mode(OUTPUT_PP);
@@ -211,10 +198,26 @@ AdjustDate_t calibrate()
     ddc_attach_chx(1,calibrate_para);
     ddc_attach_chx(2,adjust_rx);
     calibrate_flag = 0;
+    if(adjust_check() == true)
+    {
+        uart1.printf("\r\n***********para saved!****************\r\n****************\r\n****************\r\n****************\r\n****************\r\n****************\r\n");
+
+        adjust_read(&pt100);
+    }
     while(1)
     {
         if(millis() - ajust_timer > 1000)
         {
+            if(adjust_check() == true)
+            {
+                uart1.printf("\r\noffset rx:%f\r\n",pt100.offsetRx.value);
+                uart1.printf("ratio rx:%f\r\n",pt100.ratioRx.value);
+                uart1.printf("cc rx:%f\r\n",pt100.ccRx.value);
+                
+                uart1.printf("offset pt:%f\r\n",pt100.offsetPt.value);
+                uart1.printf("ratio pt:%f\r\n",pt100.ratioPt.value);
+                uart1.printf("cc pt:%f\r\n",pt100.ccPt.value);
+            }
             ajust_timer = millis();
             adc_value.value = adc.read_average(ADC_AIN0);
             adc_voltage.value = adc.adc_to_voltage(adc_value.value);
@@ -226,9 +229,7 @@ AdjustDate_t calibrate()
             data[5] = adc_voltage.byte[1];
             data[6] = adc_voltage.byte[2];
             data[7] = adc_voltage.byte[3];
-            p = (uint8_t *)ebox_malloc(8 + 10);
-            len = ddc_make_frame(p,data,8,DDC_NoAck,1);
-            ddc_add_to_list(p);  
+            ddc_nonblocking(data,8,DDC_NoAck,1);
 
             adc_value1.value = adc.read_average(ADC_AIN1);
             adc_voltage1.value = adc.adc_to_voltage(adc_value1.value);
@@ -240,9 +241,8 @@ AdjustDate_t calibrate()
             data[5] = adc_voltage1.byte[1];
             data[6] = adc_voltage1.byte[2];
             data[7] = adc_voltage1.byte[3];
-            p = (uint8_t *)ebox_malloc(8 + 10);
-            len = ddc_make_frame(p,data,8,DDC_NoAck,2);
-            ddc_add_to_list(p);  
+            ddc_nonblocking(data,8,DDC_NoAck,2);
+
 
             adc_value2.value = adc.read_average(ADC_AIN2);
             adc_voltage2.value = adc.adc_to_voltage(adc_value2.value);
@@ -254,9 +254,8 @@ AdjustDate_t calibrate()
             data[5] = adc_voltage2.byte[1];
             data[6] = adc_voltage2.byte[2];
             data[7] = adc_voltage2.byte[3];
-            p = (uint8_t *)ebox_malloc(8 + 10);
-            len = ddc_make_frame(p,data,8,DDC_NoAck,3);
-            ddc_add_to_list(p);  
+            ddc_nonblocking(data,8,DDC_NoAck,3);
+ 
 
 
             adc_value3.value = adc.read_average(ADC_AIN3);
@@ -269,56 +268,78 @@ AdjustDate_t calibrate()
             data[5] = adc_voltage3.byte[1];
             data[6] = adc_voltage3.byte[2];
             data[7] = adc_voltage3.byte[3];
-            p = (uint8_t *)ebox_malloc(8 + 10);
-            len = ddc_make_frame(p,data,8,DDC_NoAck,4);
-            ddc_add_to_list(p);  
-
-
-            RxValue.value = (adc_voltage1.value - adc_voltage2.value )/101;
-            RxValueAdjust.value = adc_value1.value*adjust.ratioR.value + adjust.offsetR.value;
-            data[0] = RxValue.byte[0];
-            data[1] = RxValue.byte[1];
-            data[2] = RxValue.byte[2];
-            data[3] = RxValue.byte[3];
-            data[4] = RxValueAdjust.byte[0];
-            data[5] = RxValueAdjust.byte[1];
-            data[6] = RxValueAdjust.byte[2];
-            data[7] = RxValueAdjust.byte[3];
-            p = (uint8_t *)ebox_malloc(8 + 10);
-            len = ddc_make_frame(p,data,8,DDC_NoAck,5);
-            ddc_add_to_list(p);
-
-
-            RtValue.value = adc_value.value * adjust.ratioP.value + adjust.offsetP.value - RxValueAdjust.value;
-            data[0] = RtValue.byte[0];
-            data[1] = RtValue.byte[1];
-            data[2] = RtValue.byte[2];
-            data[3] = RtValue.byte[3];
-            data[4] = RtValue.byte[0];
-            data[5] = RtValue.byte[1];
-            data[6] = RtValue.byte[2];
-            data[7] = RtValue.byte[3];
-            p = (uint8_t *)ebox_malloc(8 + 10);
-            len = ddc_make_frame(p,data,8,DDC_NoAck,6);
-            ddc_add_to_list(p);
+            ddc_nonblocking(data,8,DDC_NoAck,4);
 
 
 
-            uart1.printf("\r\n====%f====\r\n",(adc_value1.value - adc_value2.value - 12));
+            pt100.rxOrigin.value = (adc_voltage1.value - adc_voltage2.value )/101;
+            if(pt100.rxMode == 0)
+                pt100.rx.value = (adc_value1.value -  adc_value2.value - pt100.offsetRx.value)/538.667;
+            else
+                pt100.rx.value = adc_value1.value*pt100.ratioRx.value + pt100.offsetRx.value;
+            data[0] = pt100.rxOrigin.byte[0];
+            data[1] = pt100.rxOrigin.byte[1];
+            data[2] = pt100.rxOrigin.byte[2];
+            data[3] = pt100.rxOrigin.byte[3];
+            data[4] = pt100.rx.byte[0];
+            data[5] = pt100.rx.byte[1];
+            data[6] = pt100.rx.byte[2];
+            data[7] = pt100.rx.byte[3];
+            ddc_nonblocking(data,8,DDC_NoAck,5);
+
+
+
+            if(pt100.ptMode == 0)
+                pt100.rt.value = (adc_value.value  - pt100.offsetPt.value)/85.333;
+            else
+                pt100.rt.value = adc_value.value * pt100.ratioPt.value + pt100.offsetPt.value - pt100.rx.value;
+            data[0] = pt100.rt.byte[0];
+            data[1] = pt100.rt.byte[1];
+            data[2] = pt100.rt.byte[2];
+            data[3] = pt100.rt.byte[3];
+            data[4] = pt100.rt.byte[0];
+            data[5] = pt100.rt.byte[1];
+            data[6] = pt100.rt.byte[2];
+            data[7] = pt100.rt.byte[3];
+            ddc_nonblocking(data,8,DDC_NoAck,6);
+
+            if(adjust_flag_rx == 1 && adjust_flag_pt == 1)
+            {
+                adjust_save(&pt100);
+                uart1.printf("\r\n***********para saved!****************\r\n");
+
+            }
+            uart1.printf("\r\n====%d====\r\n",ebox_get_free());
         }
     }
+    
 //    ddc_attach_chx(1,0);
-    
-    temp.ratioP.value = answer[1];
-    temp.offsetP.value = answer[0];
-    
-    return temp;
+    return pt100;
 }
 
-
-AdjustDate_t adjust_test()
+bool adjust_check()
 {
-    AdjustDate_t x;
+    DataU32_t flag;
+    iflash.read(0x800ff00,flag.byte,4);
+    if(flag.value == 0x55aa)
+        return true;
+    else 
+        return false;
+}
+void adjust_save(PtData_t *data)
+{
+    DataU32_t flag;
+    flag.value = 0x55aa;
+    iflash.write(0x800ff00,flag.byte,4);
+    iflash.write(0x800ff10,(uint8_t*)data,sizeof(PtData_t));
+}
+void adjust_read(PtData_t *data)
+{
+    iflash.read(0x800ff10,(uint8_t*)data,sizeof(PtData_t));
+}
+PtData_t adjust_test()
+{
+    PtData_t x;
 
     
     return x;

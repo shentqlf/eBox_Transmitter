@@ -5,15 +5,29 @@
 
 typedef struct 
 {
-    DataFloat_t ratioP;
-    DataFloat_t offsetP;
-    DataFloat_t ccP;
+    DataDouble_t ratioPt;
+    DataDouble_t offsetPt;
+    DataDouble_t ccPt;
 
-    DataFloat_t ratioR;
-    DataFloat_t offsetR;  
-    DataFloat_t ccR;
-}AdjustDate_t;
+    DataDouble_t ratioRx;
+    DataDouble_t offsetRx;  
+    DataDouble_t ccRx;
+    
+    uint8_t     rxMode;
+    uint8_t     ptMode;
+    DataFloat_t rx;
+    DataFloat_t rxOrigin;
+    
+    DataFloat_t rt;
+    DataFloat_t temp;
 
-AdjustDate_t calibrate();
-AdjustDate_t adjust_test();
+}PtData_t;
+
+PtData_t calibrate();
+PtData_t adjust_test();
+
+
+bool adjust_check();
+void adjust_save(PtData_t *data);
+void adjust_read(PtData_t *data);
 #endif

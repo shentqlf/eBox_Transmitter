@@ -40,6 +40,7 @@ extern At24c02  eeprom;
 
 
 extern Ads1118 adc;
+extern Flash iflash;
 
 //class Father
 //{

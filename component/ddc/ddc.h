@@ -51,6 +51,7 @@ uint16_t    ddc_buf_to_frame(DdcFrame_t *frame,uint8_t *src);
 void        ddc_attach_chx(uint8_t ch, DdcCallBack_t callback);
 void        ddc_send_list(DdcNode_t *p);
 
+uint8_t*    ddc_nonblocking(uint8_t *data,uint16_t data_len,DdcAck_t ack,uint8_t ch );
 
 
 
