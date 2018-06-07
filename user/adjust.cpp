@@ -8,16 +8,15 @@ PtData_t pt100;
 
 uint8_t adjust_flag_rx,adjust_flag_pt;
 
-DataFloat_t adc_value;
-DataFloat_t adc_value1;
-DataFloat_t adc_value2;
-DataFloat_t adc_value3;
-DataFloat_t adc_voltage;
-DataFloat_t adc_voltage1;
-DataFloat_t adc_voltage2;
-DataFloat_t adc_voltage3;
+static DataFloat_t adc_value;
+static DataFloat_t adc_value1;
+static DataFloat_t adc_value2;
+static DataFloat_t adc_value3;
+static DataFloat_t adc_voltage;
+static DataFloat_t adc_voltage1;
+static DataFloat_t adc_voltage2;
+static DataFloat_t adc_voltage3;
 
-uint8_t calibrate_flag = 0;
 double data1[12][2] = {
 //    X      Y
 //    {187.1, 25.4},
@@ -101,8 +100,7 @@ void calibrate_para(uint8_t *ptr, uint16_t len )
         linear_regression((double*)data1,rows,&answer[0],&answer[1],&SquarePoor[0]);
         display((double*)data1,answer,&SquarePoor[0],rows,2);
     
-        
-
+       
         pt100.offsetPt.value = answer[0];
         pt100.ratioPt.value = answer[1];
         pt100.ccPt.value = sqrt(SquarePoor[0] / (SquarePoor[0] + SquarePoor[1]));
@@ -119,6 +117,8 @@ void calibrate_para(uint8_t *ptr, uint16_t len )
     ddc_nonblocking(data,16,DDC_NoAck,11);
 
     adjust_flag_pt = 1;
+    adjust_save(&pt100);
+    uart1.printf("\r\n***********para Pt saved!****************\r\n");
     PB8.toggle();
 
 }
@@ -146,6 +146,7 @@ void adjust_rx(uint8_t *ptr, uint16_t len )
             ddc_nonblocking(pt100.ccRx.byte,8,DDC_NoAck,10);
 
         }
+        pt100.rxMode = 0;
     }
     else
     {
@@ -178,11 +179,13 @@ void adjust_rx(uint8_t *ptr, uint16_t len )
 
 
     adjust_flag_rx = 1;
-    
+    adjust_save(&pt100);
+    uart1.printf("\r\n***********para Rx saved!****************\r\n");
+
     PB9.toggle();
 
 }
-PtData_t calibrate()
+void calibrate()
 {
     uint8_t *p;
     uint8_t *px;
@@ -197,11 +200,11 @@ PtData_t calibrate()
     PB8.set();
     ddc_attach_chx(1,calibrate_para);
     ddc_attach_chx(2,adjust_rx);
-    calibrate_flag = 0;
+    adjust_flag_rx = 0;
+    adjust_flag_pt = 0;
     if(adjust_check() == true)
     {
         uart1.printf("\r\n***********para saved!****************\r\n****************\r\n****************\r\n****************\r\n****************\r\n****************\r\n");
-
         adjust_read(&pt100);
     }
     while(1)
@@ -303,18 +306,16 @@ PtData_t calibrate()
             data[7] = pt100.rt.byte[3];
             ddc_nonblocking(data,8,DDC_NoAck,6);
 
+
             if(adjust_flag_rx == 1 && adjust_flag_pt == 1)
             {
                 adjust_save(&pt100);
-                uart1.printf("\r\n***********para saved!****************\r\n");
-
+                uart1.printf("\r\n====ajust ok!!!!!====\r\n",ebox_get_free());
+                return ;
+            
             }
-            uart1.printf("\r\n====%d====\r\n",ebox_get_free());
         }
     }
-    
-//    ddc_attach_chx(1,0);
-    return pt100;
 }
 
 bool adjust_check()

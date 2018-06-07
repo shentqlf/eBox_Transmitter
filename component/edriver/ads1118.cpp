@@ -68,22 +68,19 @@ uint16_t Ads1118::read(uint8_t ch)
         update_cfg(&cfg);
         delay_ms(10);
     }
-    
     //读取相应通道值
     spi->take_spi_right(&config);
     cs->reset();
-    delay_us(500);
-
+    last = millis();
     while(miso->read() == 1)
     {   
         if(millis() - last > 10)
             break;
     }
-    value |= spi->read() << 8;
-    value |= spi->read();
+    value |= spi->transfer(0xff) << 8;
+    value |= spi->transfer(0xff);
     cs->set();
     spi->release_spi_right();
-    //delay_us(5000);
     return value;
 }
 AdsConfig_t Ads1118::update_cfg(AdsConfig_t *cfg)
@@ -93,7 +90,6 @@ AdsConfig_t Ads1118::update_cfg(AdsConfig_t *cfg)
     AdsConfig_t temp;
     spi->take_spi_right(&config);
     cs->reset();
-    delay_us(10);
 
     while(miso->read() == 1)
     {   
@@ -102,8 +98,8 @@ AdsConfig_t Ads1118::update_cfg(AdsConfig_t *cfg)
     }
     spi->write(cfg->byte[0]);
     spi->write(cfg->byte[1]);
-    temp.byte[0] = spi->read();
-    temp.byte[1] = spi->read();
+    temp.byte[0] = spi->transfer(0xff);
+    temp.byte[1] = spi->transfer(0xff);
     cs->set();
     spi->release_spi_right();
     return temp;
@@ -129,7 +125,7 @@ float Ads1118::read_average(uint8_t ch)
         sum += read(ch);
         sum = sum;
         //delay_ms(10);
-        uart3.printf("\r\n\r\n__%f___ \r\n\r\n",sum);
+        //uart3.printf("\r\n\r\n__%f___ \r\n\r\n",sum);
     }
     sum = sum/20.0;
     return sum;

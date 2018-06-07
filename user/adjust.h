@@ -22,12 +22,13 @@ typedef struct
     DataFloat_t temp;
 
 }PtData_t;
+extern PtData_t pt100;
 
-PtData_t calibrate();
-PtData_t adjust_test();
+void calibrate();
 
 
 bool adjust_check();
 void adjust_save(PtData_t *data);
 void adjust_read(PtData_t *data);
+
 #endif

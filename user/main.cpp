@@ -150,10 +150,19 @@ void setup()
     
 
 }
+static DataFloat_t adc_value;
+static DataFloat_t adc_value1;
+static DataFloat_t adc_value2;
+static DataFloat_t adc_value3;
+static DataFloat_t adc_voltage;
+static DataFloat_t adc_voltage1;
+static DataFloat_t adc_voltage2;
+static DataFloat_t adc_voltage3;
 
-
+uint64_t last_update;
 int main(void)
 {
+    uint8_t data[16];
 	setup();
 
 
@@ -163,7 +172,51 @@ int main(void)
         if(is_enter_adjust_flag.value == 0x55aa)
         {
             calibrate();
+            is_enter_adjust_flag.value = 0;
         }
+            adc_value.value = adc.read_average(ADC_AIN0);
+            adc_voltage.value = adc.adc_to_voltage(adc_value.value);
+            adc_value1.value = adc.read_average(ADC_AIN1);
+            adc_voltage1.value = adc.adc_to_voltage(adc_value1.value);
+            adc_value2.value = adc.read_average(ADC_AIN2);
+            adc_voltage2.value = adc.adc_to_voltage(adc_value2.value);
+
+            pt100.rxOrigin.value = (adc_voltage1.value - adc_voltage2.value )/101;
+            if(pt100.rxMode == 0)
+                pt100.rx.value = (adc_value1.value -  adc_value2.value - pt100.offsetRx.value)/538.667;
+            else
+                pt100.rx.value = adc_value1.value*pt100.ratioRx.value + pt100.offsetRx.value;
+
+            
+            if(pt100.ptMode == 0)
+                pt100.rt.value = (adc_value.value  - pt100.offsetPt.value)/85.333;
+            else
+                pt100.rt.value = adc_value.value * pt100.ratioPt.value + pt100.offsetPt.value - pt100.rx.value;
+
+
+            if(millis() - last_update > 1000)
+            {
+                last_update = millis();
+                data[0] = pt100.rt.byte[0];
+                data[1] = pt100.rt.byte[1];
+                data[2] = pt100.rt.byte[2];
+                data[3] = pt100.rt.byte[3];
+                data[4] = pt100.rt.byte[0];
+                data[5] = pt100.rt.byte[1];
+                data[6] = pt100.rt.byte[2];
+                data[7] = pt100.rt.byte[3];
+                ddc_nonblocking(data,8,DDC_NoAck,6);  
+                data[0] = pt100.rxOrigin.byte[0];
+                data[1] = pt100.rxOrigin.byte[1];
+                data[2] = pt100.rxOrigin.byte[2];
+                data[3] = pt100.rxOrigin.byte[3];
+                data[4] = pt100.rx.byte[0];
+                data[5] = pt100.rx.byte[1];
+                data[6] = pt100.rx.byte[2];
+                data[7] = pt100.rx.byte[3];
+                ddc_nonblocking(data,8,DDC_NoAck,5);
+
+            }
 //        FreemodbusPoll();
 //        LED_Poll();
 //        Button_Poll();
